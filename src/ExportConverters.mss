@@ -371,6 +371,16 @@ function ConvertAccidental (noteobj) {
         {
             ac = 'fd';
         }
+        case('#+')
+        {
+            ac = 'su';
+        }
+        case('##')
+        {
+            ac = 'ss';
+        }
+        //The cases with only one letter should be put at the end of the switch
+        //Otherwise it produces mismatches, e.g. "#+" will be treat as "#"
         case('b')
         {
             ac = 'f';
@@ -379,32 +389,24 @@ function ConvertAccidental (noteobj) {
         {
             ac = 'fu';
         }
+        case('#')
+        {
+            ac = 's';
+        }
+        case('x')
+        {
+            ac = 'x';
+        }
+        case('+')
+        {
+            ac = 'sd';
+        }
         case('')
         {
             if (is_visible = True)
             {
                 ac = 'n';
             }
-        }
-        case('+')
-        {
-            ac = 'sd';
-        }
-        case('#')
-        {
-            ac = 's';
-        }
-        case('#+')
-        {
-            ac = 'su';
-        }
-        case('x')
-        {
-            ac = 'x';
-        }
-        case('##')
-        {
-            ac = 'ss';
         }
     }
 
