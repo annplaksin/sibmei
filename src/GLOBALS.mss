@@ -1,4 +1,4 @@
-Version     "0.9.0"
+Version     "1.0.0"
 PluginName  "Sibelius to MEI Exporter (CMO Version)"
 Author      "Andrew Hankinson, Anna Plaksin"
 
