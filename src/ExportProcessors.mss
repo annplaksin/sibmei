@@ -204,6 +204,11 @@ function ProcessBeam (bobj, note, layer) {
                     beam = libmei.Beam();
                     layer._property:ActiveBeamId = beam._id;
                 }
+                else 
+                {
+                	//If there is no following non-grace note but the current note has a start beam, there can't be a beam
+                	layer._property:ActiveBeamId = null;
+                }
             }
             
             //If a beam is active, add the current note to the beam.
