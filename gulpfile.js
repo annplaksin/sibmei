@@ -8,7 +8,7 @@ var l = require('fancy-log');
 var Q = require('q');
 var plgconf = require('./plgconfig');
 
-function build(cb)
+function build()
 {
     var deferred = Q.defer();
     l.info(c.blue('Copying "linked" libraries'));
@@ -40,10 +40,9 @@ function build(cb)
         .pipe(gulp.dest(destPath));
 
     return deferred.promise;
-    cb();
 };
 
-function deploy ()
+function deploy (cb)
 {
     var deploy = child.exec('deployPlg', function(err, stdout, stderr)
     {
@@ -53,6 +52,7 @@ function deploy ()
         }
         l.info(c.blue('Output: ') + '\n' + stdout);
     });
+    cb();
 };
 
 function develop() {
