@@ -487,6 +487,8 @@ function GenerateLayers (staffnum, measurenum) {
     this_staff = score.NthStaff(staffnum);
     bar = this_staff[measurenum];
 
+    mobjs = Self._property:MeasureObjects;
+
     for each bobj in bar
     {
         voicenumber = bobj.VoiceNumber;
@@ -521,7 +523,6 @@ function GenerateLayers (staffnum, measurenum) {
 
         obj = null;
         mobj = null;
-        chordsym = null;
         parent = null;
         beam = null;
         tuplet = null;
@@ -661,6 +662,17 @@ function GenerateLayers (staffnum, measurenum) {
                     libmei.AddChild(l, brest);
                 }
             }
+        }
+    }
+
+    for each bobj in bar
+    {
+        obj = null;
+        mobj = null;
+        chordsym = null;
+
+        switch (bobj.Type)
+        {
             case('GuitarFrame')
             {
                 chordsym = GenerateChordSymbol(bobj);
@@ -704,6 +716,16 @@ function GenerateLayers (staffnum, measurenum) {
             case('Text')
             {
                 mobj = ConvertText(bobj);
+                if (mobj != null)
+                {
+                    //Try to get note at position of bracket and put id
+                    obj = GetNoteObjectAtPosition(bobj);
+
+                    if (obj != null)
+                    {
+                        libmei.AddAttribute(text, 'startid', '#' & obj._id);
+                    }
+                }
             }
         }
 
@@ -723,6 +745,8 @@ function GenerateLayers (staffnum, measurenum) {
             Self._property:MeasureObjects = mlines;
         }
     }
+
+    Self._property:MeasureObjects = mobjs;
 
     for each LyricItem lobj in bar
     {
@@ -1507,10 +1531,61 @@ function GenerateLine (bobj) {
                             libmei.AddAttribute(line, 'subtype', 'end');
                         }
                     }
+                    if (linecomps.Length > 3)
+                    {
+                        if (linecomps[3] = 'vertical')
+                        {
+                            libmei.AddAttribute(line, 'subtype', 'vertical');
+
+                            //Add direction of bracket
+                            if (linecomps > 4)
+                            {
+                                if (linecomps[4] = '2')
+                                {
+                                    libmei.AddAttribute(line, 'label', 'start');
+                                }
+                            }
+
+                            else
+                            {
+                                libmei.AddAttribute(line, 'label', 'end');
+                            }
+                        }
+                    }
                 }
+                //solid vertical line
                 case ('vertical')
                 {
-                    line = libmei.BarLine();
+                    line = libmei.Line();
+                    libmei.AddAttribute(line,'form','solid');
+                    libmei.AddAttribute(line,'type','vertical');
+                }
+                //dashed vertical line
+                case ('dashed')
+                {
+                    if (linecomps.Length > 3)
+                    {
+                        if (linecomps[3] = 'vertical')
+                        {
+                            line = libmei.Line();
+                            libmei.AddAttribute(line,'form','dashed');
+                            libmei.AddAttribute(line,'type','vertical');
+                        }
+                    }
+                }
+                case ('vibrato')
+                {
+                    line = libmei.Line();
+                    libmei.AddAttribute(line, 'type', 'vibrato');
+                    libmei.AddAttribute(line, 'form', 'wavy');
+                    libmei.AddAttribute(line, 'place', 'above');
+
+                }
+
+                //To catch diverse line types, set a default
+                default
+                {
+                    line = libmei.Line();
                 }
             }
         }
