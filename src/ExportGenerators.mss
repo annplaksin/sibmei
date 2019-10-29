@@ -126,6 +126,7 @@ function GenerateMEIMusic () {
     score = Self._property:ActiveScore;
 
     Self._property:TieResolver = CreateDictionary();
+    Self._property:SlurResolver = CreateSparseArray();
     Self._property:LyricWords = CreateDictionary();
     Self._property:SpecialBarlines = CreateDictionary();
     Self._property:SystemText = CreateDictionary();
@@ -680,6 +681,8 @@ function GenerateLayers (staffnum, measurenum) {
             case('Slur')
             {
                 mobj = GenerateLine(bobj);
+                bobj._property:mobj = mobj;
+                PushToHashedLayer(Self._property:SlurResolver, bobj.EndBarNumber, bobj);
             }
             case('CrescendoLine')
             {
@@ -723,7 +726,7 @@ function GenerateLayers (staffnum, measurenum) {
 
                     if (obj != null)
                     {
-                        libmei.AddAttribute(text, 'startid', '#' & obj._id);
+                        libmei.AddAttribute(mobj, 'startid', '#' & obj._id);
                     }
                 }
             }
@@ -757,6 +760,8 @@ function GenerateLayers (staffnum, measurenum) {
     {
         ProcessSymbol(sobj);
     }
+
+    ProcessEndingSlurs(bar);
 
     return layers;
 }  //$end
@@ -872,12 +877,13 @@ function GenerateNoteRest (bobj, layer) {
 
     if (bobj.IsAppoggiatura = True)
     {
-        libmei.AddAttribute(nr, 'grace', 'unacc');
+        libmei.AddAttribute(nr, 'grace', 'acc');
     }
 
     if (bobj.IsAcciaccatura = True)
     {
-        libmei.AddAttribute(nr, 'grace', 'acc');
+        libmei.AddAttribute(nr, 'grace', 'unacc');
+        libmei.AddAttribute(nr, 'stem.mod', '1slash');
     }
 
     if (bobj.GetArticulation(PauseArtic) or bobj.GetArticulation(TriPauseArtic) or bobj.GetArticulation(SquarePauseArtic))
