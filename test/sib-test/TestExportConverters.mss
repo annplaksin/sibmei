@@ -14,16 +14,17 @@ function TestExportConverters (suite) {
         .Add('TestClefConverter')
         .Add('TestBracketConverter')
         .Add('TestPositionToTimestampConverter')
+        .Add('TestConvertTimeStamp')
         ;
 } //$end
 
 function TestSlurValueConverter (assert, plugin) {
     //$module(TestExportConverters)
-    output = sibmei2.ConvertSlur('line.staff.slur.up.dotted');
+    output = sibmei2.ConvertSlurStyle('line.staff.slur.up.dotted');
     assert.Equal(output[0], 'above', 'Direction should be up');
     assert.Equal(output[1], 'dotted', 'Style should be dotted');
 
-    output = sibmei2.ConvertSlur('line.staff.slur.down');
+    output = sibmei2.ConvertSlurStyle('line.staff.slur.down');
     assert.Equal(output[0], 'below', 'Direction should be down');
     assert.Equal(output[1], ' ', 'Style should be empty');
 } //$end
@@ -136,6 +137,19 @@ function TestAccidentalConverter (assert, plugin) {
     output = sibmei2.ConvertAccidental(note6);
     assert.Equal(output[0], 'ff', 'The note is a B double-flat');
     assert.NotOK(output[1], 'The B double-flat has already been shown, so it should not be visible');
+
+    bar4 = staff[4];
+    noterest7 = bar4.NthBarObject(2);
+    note7 = noterest7[0];
+    output = sibmei2.ConvertAccidental(note7);
+    assert.Equal(output[0], 'x', 'The note is a G double-sharp (croix)');
+    assert.OK(output[1], 'The croix should be visible');
+
+    noterest8 = bar4.NthBarObject(3);
+    note8 = noterest8[0];
+    output = sibmei2.ConvertAccidental(note8);
+    assert.Equal(output[0], 'ss', 'The note is an invisible G double-sharp. There is no croix for invisible accidentals');
+    assert.NotOK(output[1], 'The G double-sharp has already been shown, so it should not be visible');
 }  //$end
 
 function TestHasVisibleAccidentalConverter (assert, plugin) {
@@ -309,3 +323,28 @@ function TestPositionToTimestampConverter (assert, plugin) {
     tstamp = sibmei2.ConvertPositionToTimestamp(position, bar3);
     assert.Equal(tstamp, 4, 'A note in position 384 is on beat 3 in 12/8');
 }  //$end
+
+function TestConvertTimeStamp (assert, plugin) {
+    //$module(TestExportConverters.mss)
+
+    //Case 1: only seconds with milliseconds
+    time1 = 4500;
+    tstamp1 = sibmei2.ConvertTimeStamp(time1);
+    assert.Equal(tstamp1, '00:00:04.5', '4500 milliseconds are 4.5 seconds');
+
+    //Case 2: minutes, seconds with milliseconds
+    time2 = 75200;
+    tstamp2 = sibmei2.ConvertTimeStamp(time2);
+    assert.Equal(tstamp2, '00:01:15.2', '75200 milliseconds are should be converted to 00:01:15.2');
+
+    //Case 3: hours, minutes, seconds with milliseconds
+    time3 = 3845800;
+    tstamp3 = sibmei2.ConvertTimeStamp(time3);
+    assert.Equal(tstamp3, '01:04:05.8', '3845800 milliseconds are should be converted to 01:04:05.8');
+
+    //Case 4: a very long piece (over 10 hours)
+    time4 = 39634700;
+    tstamp4 = sibmei2.ConvertTimeStamp(time4);
+    assert.Equal(tstamp4, '11:00:34.7', '39634700 milliseconds are should be converted to 11:00:34.7');
+
+}   //$end

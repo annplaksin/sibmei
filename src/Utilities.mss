@@ -288,48 +288,10 @@ function AddBarObjectInfoToElement (bobj, element) {
         warnings.Push(utils.Format(_ObjectAssignedToAllVoicesWarning, bar.BarNumber, voicenum, 'Bar object'));
     }
 
-    if (bobj.Type = 'Line')
-    {
-        // lines have durations, but symbols do not.
-        if (bobj.Duration > 0)
-        {
-            libmei.AddAttribute(element, 'dur.ges', bobj.Duration & 'p');
-        }
-    }
-
     libmei.AddAttribute(element, 'tstamp', ConvertPositionToTimestamp(bobj.Position, bar));
 
     switch (bobj.Type)
     {
-        case('Line')
-        {
-            libmei.AddAttribute(element, 'tstamp2', ConvertPositionWithDurationToTimestamp(bobj));
-        }
-        case('Slur')
-        {
-            libmei.AddAttribute(element, 'tstamp2', ConvertPositionWithDurationToTimestamp(bobj));
-            start_obj = GetNoteObjectAtPosition(bobj);
-            if (start_obj != null)
-            {
-                libmei.AddAttribute(element, 'startid', '#' & start_obj._id);
-            }
-        }
-        case('DiminuendoLine')
-        {
-            libmei.AddAttribute(element, 'tstamp2', ConvertPositionWithDurationToTimestamp(bobj));
-        }
-        case('CrescendoLine')
-        {
-            libmei.AddAttribute(element, 'tstamp2', ConvertPositionWithDurationToTimestamp(bobj));
-        }
-        case('GlissandoLine')
-        {
-            libmei.AddAttribute(element, 'tstamp2', ConvertPositionWithDurationToTimestamp(bobj));
-        }
-        case('Trill')
-        {
-            libmei.AddAttribute(element, 'tstamp2', ConvertPositionWithDurationToTimestamp(bobj));
-        }
         case('SymbolItem')
         {
             start_obj = GetNoteObjectAtPosition(bobj);
@@ -338,20 +300,85 @@ function AddBarObjectInfoToElement (bobj, element) {
                 libmei.AddAttribute(element, 'startid', '#' & start_obj._id);
             }
         }
+        case('NoteRest')
+        {
+            start_obj = GetNoteObjectAtPosition(bobj);
+            if (start_obj != null)
+            {
+                libmei.AddAttribute(element, 'startid', '#' & start_obj._id);
+            }
+        }
+        case('ArpeggioLine')
+        {
+            start_obj = GetNoteObjectAtPosition(bobj);
+            if (start_obj != null)
+            {
+                libmei.AddAttribute(element, 'startid', '#' & start_obj._id);
+            }
+        }
+        // at default add tstamp2 and try to find startid and endid
+        default
+        {
+            libmei.AddAttribute(element, 'tstamp2', ConvertPositionWithDurationToTimestamp(bobj));
+            start_obj = GetNoteObjectAtPosition(bobj);
+            end_obj = GetNoteObjectAtEndPosition(bobj);
+            if (start_obj != null)
+            {
+                libmei.AddAttribute(element, 'startid', '#' & start_obj._id);
+            }
+
+            if (end_obj != null)
+            {
+                libmei.AddAttribute(element, 'endid', '#' & end_obj._id);
+            }
+        }
     }
 
     libmei.AddAttribute(element, 'staff', bar.ParentStaff.StaffNum);
     libmei.AddAttribute(element, 'layer', voicenum);
 
-    if (bobj.Dx > 0)
+    if (bobj.Type = 'Line')
     {
-        libmei.AddAttribute(element, 'ho', ConvertOffsetsToMillimeters(bobj.Dx));
+        // lines have durations, but symbols do not.
+        if (bobj.Duration > 0)
+        {
+            libmei.AddAttribute(element, 'dur.ppq', bobj.Duration);
+        }
+
+        // lines have a left hand and a right hand offset
+        // left hand offset
+        if (bobj.Dx > 0)
+        {
+            libmei.AddAttribute(element, 'startho', ConvertOffsetsToMillimeters(bobj.Dx));
+        }
+        if (bobj.Dy > 0)
+        {
+            libmei.AddAttribute(element, 'startvo', ConvertOffsetsToMillimeters(bobj.Dy));
+        }
+        // right hand offset
+        if (bobj.RhDx > 0)
+        {
+            libmei.AddAttribute(element, 'endho', ConvertOffsetsToMillimeters(bobj.Dx));
+        }
+        if (bobj.RhDy > 0)
+        {
+            libmei.AddAttribute(element, 'endvo', ConvertOffsetsToMillimeters(bobj.Dy));
+        }
+    }
+    else
+    {
+        // other types only have a left hand offset
+        if (bobj.Dx > 0)
+        {
+            libmei.AddAttribute(element, 'ho', ConvertOffsetsToMillimeters(bobj.Dx));
+        }
+
+        if (bobj.Dy > 0)
+        {
+            libmei.AddAttribute(element, 'vo', ConvertOffsetsToMillimeters(bobj.Dy));
+        }
     }
 
-    if (bobj.Dy > 0)
-    {
-        libmei.AddAttribute(element, 'vo', ConvertOffsetsToMillimeters(bobj.Dy));
-    }
 
     return element;
 

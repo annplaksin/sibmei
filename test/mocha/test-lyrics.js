@@ -4,18 +4,6 @@ const assert = require('assert');
 const xpath = require('fontoxpath');
 const utils = require('./utils');
 
-function assertAttrOnElements(elements, indices, attName, expectedValue) {
-  for (let i = 0; i < elements.length; i += 1) {
-    const actualValue = elements[i].getAttribute(attName);
-    const elementDescription = 'element index ' + i + ' ("' + elements[i].innerHTML + '")';
-    if (indices.indexOf(i) >= 0) {
-      assert.strictEqual(actualValue, expectedValue, 'value not found on ' + elementDescription);
-    } else {
-      assert.notEqual(actualValue, expectedValue, 'value unexpectedly found on ' + elementDescription);
-    }
-  }
-}
-
 describe("Lyrics", () => {
   const mei = utils.getTestMeiDom('lyrics.mei');
   const syls = xpath.evaluateXPath('//*:syl', mei);
@@ -38,28 +26,35 @@ describe("Lyrics", () => {
 
   describe("wordpos", () => {
     it("marks initial syllables (@wordpos='i')", () => {
-      assertAttrOnElements(syls, [1, 5, 7, 11], 'wordpos', 'i');
+      utils.assertAttrOnElements(syls, [1, 5, 7, 11, 17, 19, 22, 27, 29], 'wordpos', 'i');
     });
     it("marks medial syllables (@wordpos='m')", () => {
-      assertAttrOnElements(syls, [2, 8], 'wordpos', 'm');
+      utils.assertAttrOnElements(syls, [2, 8, 20, 23, 30], 'wordpos', 'm');
     });
     it("marks terminal syllables (@wordpos='t')", () => {
-      assertAttrOnElements(syls, [3, 6, 9, 12], 'wordpos', 't');
+      utils.assertAttrOnElements(syls, [3, 6, 9, 12, 18, 21, 24, 28, 31], 'wordpos', 't');
     });
     it("handles single syllable words (omit @wordpos)", () => {
-      assertAttrOnElements(syls, [0, 4, 10, 13, 14], 'wordpos', null);
+      utils.assertAttrOnElements(syls, [0, 4, 10, 13, 14, 15, 16, 25, 26, 32, 33, 34, 35], 'wordpos', null);
     });
   });
 
   describe("con", () => {
     it("marks dashes (@con='d')", () => {
-      assertAttrOnElements(syls, [1, 2, 5, 7, 8, 11], 'con', 'd');
+      utils.assertAttrOnElements(syls, [1, 2, 5, 7, 8, 11, 17, 19, 20, 22, 23, 27, 29, 30], 'con', 'd');
     });
     it("marks syllable extensions (undescore, @con='u')", () => {
-      assertAttrOnElements(syls, [10, 12], 'con', 'u');
+      utils.assertAttrOnElements(syls, [10, 12], 'con', 'u');
     });
     it("marks syllable elisions (breve, @con='b')", () => {
-      assertAttrOnElements(syls, [0, 13], 'con', 'b');
+      utils.assertAttrOnElements(syls, [0, 13, 18, 31, 33, 34], 'con', 'b');
+    });
+  });
+
+  describe("chords", () => {
+    it("adds <syl> to <chord>s", () => {
+      assert.strictEqual(syls[4].parentNode.nodeName, 'verse');
+      assert.strictEqual(syls[4].parentNode.parentNode.nodeName, 'chord');
     });
   });
 });

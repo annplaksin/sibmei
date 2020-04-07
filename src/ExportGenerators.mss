@@ -13,18 +13,21 @@ function GenerateMEIHeader () {
     libmei.AddChild(header, fileD);
     libmei.AddChild(fileD, titleS);
 
-    workDesc = libmei.WorkDesc();
-    Self._property:WorkDescElement = workDesc;
+    //encodingDesc must preceed workList in MEI 4.0
+    encodingD = libmei.EncodingDesc();
+    libmei.AddChild(header, encodingD);
+    appI = GenerateApplicationInfo();
+    libmei.AddChild(encodingD, appI);
+
+    //generate workList
+    workList = libmei.WorkList();
+    Self._property:WorkListElement = workList;
 
     wd_work = libmei.Work();
-    wd_titleStmt = libmei.TitleStmt();
     wd_title = libmei.Title();
-    wd_respStmt = libmei.RespStmt();
-    libmei.AddChild(wd_titleStmt, wd_title);
-    libmei.AddChild(wd_titleStmt, wd_respStmt);
-    libmei.AddChild(wd_work, wd_titleStmt);
-    libmei.AddChild(workDesc, wd_work);
-    libmei.AddChild(header, workDesc);
+    libmei.AddChild(wd_work, wd_title);
+    libmei.AddChild(workList, wd_work);
+    libmei.AddChild(header, workList);
 
     title = libmei.Title();
     libmei.AddChild(titleS, title);
@@ -46,30 +49,27 @@ function GenerateMEIHeader () {
         composer = libmei.Composer();
         libmei.AddChild(titleS, composer);
         libmei.SetText(composer, score.Composer);
-        wd_composer = libmei.PersName();
-        libmei.AddAttribute(wd_composer, 'role', 'composer');
+        wd_composer = libmei.Composer();
         libmei.SetText(wd_composer, score.Composer);
-        libmei.AddChild(wd_respStmt, wd_composer);
+        libmei.AddChild(wd_work, wd_composer);
     }
     if (score.Lyricist != '')
     {
         lyricist = libmei.Lyricist();
         libmei.AddChild(titleS, lyricist);
         libmei.SetText(lyricist, score.Lyricist);
-        wd_lyricist = libmei.PersName();
-        libmei.AddAttribute(wd_lyricist, 'role', 'lyricist');
+        wd_lyricist = libmei.Lyricist();
         libmei.SetText(wd_lyricist, score.Lyricist);
-        libmei.AddChild(wd_respStmt, wd_lyricist);
+        libmei.AddChild(wd_work, wd_lyricist);
     }
     if (score.Arranger != '')
     {
         arranger = libmei.Arranger();
         libmei.AddChild(titleS, arranger);
         libmei.SetText(arranger, score.Arranger);
-        wd_arranger = libmei.PersName();
-        libmei.AddAttribute(wd_arranger, 'role', 'arranger');
+        wd_arranger = libmei.Arranger();
         libmei.SetText(wd_arranger, score.Arranger);
-        libmei.AddChild(wd_respStmt, wd_arranger);
+        libmei.AddChild(wd_work, wd_arranger);
     }
     if (score.OtherInformation != '')
     {
@@ -93,10 +93,13 @@ function GenerateMEIHeader () {
     libmei.AddChild(pubS, avail);
     libmei.SetText(ur, score.Copyright);
 
-    encodingD = libmei.EncodingDesc();
-    libmei.AddChild(header, encodingD);
+    return header;
+}  //$end
+
+function GenerateApplicationInfo () {
+    //$module(ExportGenerators.mss)
+
     appI = libmei.AppInfo();
-    libmei.AddChild(encodingD, appI);
 
     applic = libmei.Application();
     libmei.SetId(applic, 'sibelius');
@@ -118,8 +121,9 @@ function GenerateMEIHeader () {
     libmei.AddChild(plgapp, plgname);
     libmei.AddChild(appI, plgapp);
 
-    return header;
-}  //$end
+    return appI;
+
+}   //$end
 
 function GenerateMEIMusic () {
     //$module(ExportGenerators.mss)
@@ -308,7 +312,6 @@ function GenerateMDiv (barnum) {
 
     sco = libmei.Score();
     libmei.AddChild(mdiv, sco);
-    libmei.AddChild(mdiv, ano);
 
     scd = GenerateScoreDef(score, barnum);
     Self._property:MainScoreDef = scd;
@@ -317,6 +320,9 @@ function GenerateMDiv (barnum) {
     section = libmei.Section();
     Self._property:SectionElement = section;
     libmei.AddChild(sco, section);
+
+    //annot is valid as a child of score
+    libmei.AddChild(sco, ano);
 
     return mdiv;
 } //$end
@@ -439,9 +445,9 @@ function GenerateMeasure (num) {
         newMdiv = GenerateMDiv(num + 1);
         libmei.AddChild(body, newMdiv);
         // a new section end means a new entry in the header.
-        workDesc = Self._property:WorkDescElement;
+        workList = Self._property:WorkListElement;
         workEl = libmei.Work();
-        libmei.AddChild(workDesc, workEl);
+        libmei.AddChild(workList, workEl);
     }
 
     return m;
@@ -808,50 +814,25 @@ function GenerateNoteRest (bobj, layer) {
     if (bobj.NoteCount > 0)
     {
         // notes and chords, not rests.
-        switch (bobj.Stemweight)
+        // If the stemweight is less than zero, the stem will point up, otherwise it will point down.
+        if (bobj.Stemweight < 0)
         {
-            case (StemweightUp)
-            {
-                libmei.AddAttribute(nr, 'stem.dir', 'up');
-            }
-            case (StemweightDown)
-            {
-                libmei.AddAttribute(nr, 'stem.dir', 'down');
-            }
-            case (StemweightFlipUp)
-            {
-                libmei.AddAttribute(nr, 'stem.dir', 'up');
-            }
-            case (StemweightFlipDown)
-            {
-                libmei.AddAttribute(nr, 'stem.dir', 'down');
-            }
-            default
-            {
-                // Handle other values.
-                // If the stemweight is less than zero, the stem will point up, otherwise it will point down.
-                if (bobj.Stemweight < 0)
-                {
-                    libmei.AddAttribute(nr, 'stem.dir', 'up');
-                }
-
-                // it seems that 0-weight stems are assumed to be down
-                if (bobj.Stemweight >= 0)
-                {
-                    libmei.AddAttribute(nr, 'stem.dir', 'down');
-                }
-            }
+            libmei.AddAttribute(nr, 'stem.dir', 'up');
+        }
+        else
+        {
+            libmei.AddAttribute(nr, 'stem.dir', 'down');
         }
     }
 
     if (bobj.Dx != 0)
     {
-        libmei.AddAttribute(nr, 'ho', ConvertOffsetsToMillimeters(bobj.Dx));
+        libmei.AddAttribute(nr, 'ho', ConvertOffsetsToMEI(bobj.Dx));
     }
 
     if (bobj.CueSize = true and libmei.GetName(nr) != 'space')
     {
-        libmei.AddAttribute(nr, 'size', 'cue');
+        libmei.AddAttribute(nr, 'fontsize', 'small');
     }
 
     if (bobj.Hidden = true and libmei.GetName(nr) != 'space')
@@ -974,7 +955,7 @@ function GenerateNoteRest (bobj, layer) {
         libmei.AddAttribute(nr, 'stem.mod', stemmod);
     }
 
-    libmei.AddAttribute(nr, 'tstamp.ges', ConvertTimeStamp(bobj.Time));
+    libmei.AddAttribute(nr, 'tstamp.real', ConvertTimeStamp(bobj.Time));
 
     return nr;
 }  //$end
@@ -997,22 +978,22 @@ function GenerateRest (bobj) {
 
     name = libmei.GetName(r);
     libmei.AddAttribute(r, 'dur', meidur[0]);
-    libmei.AddAttribute(r, 'dur.ges', dur & 'p');
+    libmei.AddAttribute(r, 'dur.ppq', dur);
     libmei.AddAttribute(r, 'dots', meidur[1]);
 
     if (bobj.Dx != 0 and name != 'space')
     {
-        libmei.AddAttribute(r, 'ho', ConvertOffsetsToMillimeters(bobj.Dx));
+        libmei.AddAttribute(r, 'ho', ConvertOffsetsToMEI(bobj.Dx));
     }
 
     if (bobj.Dy != 0 and name != 'space')
     {
-        libmei.AddAttribute(r, 'vo', ConvertOffsetsToMillimeters(bobj.Dy));
+        libmei.AddAttribute(r, 'vo', ConvertOffsetsToMEI(bobj.Dy));
     }
 
     if (bobj.CueSize = true and name != 'space')
     {
-        libmei.AddAttribute(r, 'size', 'cue');
+        libmei.AddAttribute(r, 'fontsize', 'small');
     }
 
     if (bobj.Hidden = true and name != 'space')
@@ -1109,8 +1090,19 @@ function GenerateNote (nobj) {
     libmei.AddAttribute(n, 'pname', ntinfo[0]);
     libmei.AddAttribute(n, 'oct', ntinfo[1]);
     libmei.AddAttribute(n, 'dur', meidur[0]);
-    libmei.AddAttribute(n, 'dur.ges', gesdur & 'p');
+    libmei.AddAttribute(n, 'dur.ppq', gesdur);
     libmei.AddAttribute(n, 'dots', meidur[1]);
+
+    if (nobj.Dx != 0)
+    {
+        libmei.AddAttribute(n, 'ho', ConvertOffsetsToMEI(nobj.Dx));
+    }
+
+    if (nobj.Color != nobj.ParentNoteRest.Color)
+    {
+        note_color = ConvertColor(nobj);
+        libmei.AddAttribute(n, 'color', note_color);
+    }
 
     staff = nobj.ParentNoteRest.ParentBar.ParentStaff.StaffNum;
     layer = nobj.ParentNoteRest.VoiceNumber;
@@ -1217,7 +1209,7 @@ function GenerateChord (bobj) {
     meidur = ConvertDuration(dur);
 
     libmei.AddAttribute(n, 'dur', meidur[0]);
-    libmei.AddAttribute(n, 'dur.ges', dur & 'p');
+    libmei.AddAttribute(n, 'dur.ppq', dur);
     libmei.AddAttribute(n, 'dots', meidur[1]);
 
     for each note in bobj
@@ -1252,9 +1244,9 @@ function GenerateBarRest (bobj) {
         }
         case (FourBarRepeat)
         {
-            warnings = Self._property:warnings;
-            warnings.Push(utils.Format(_ObjectHasNoMEISupport, 'A four-bar repeat'));
-            return null;
+            // MEI now supports a four-bar repeat
+            obj = libmei.MultiRpt();
+            libmei.AddAttribute(obj, 'num', '4');
         }
     }
 
@@ -1271,7 +1263,7 @@ function GenerateBarRest (bobj) {
         libmei.AddAttribute(obj, 'visible', 'false');
     }
 
-    libmei.AddAttribute(obj, 'tstamp.ges', ConvertTimeStamp(bobj.Time));
+    libmei.AddAttribute(obj, 'tstamp.real', ConvertTimeStamp(bobj.Time));
 
     return obj;
 }  //$end
@@ -1330,8 +1322,11 @@ function GenerateScoreDef (score, barnum) {
     libmei.AddAttribute(scoredef, 'meter.sym', ConvertNamedTimeSignature(timesig.Text));
     libmei.AddAttribute(scoredef, 'ppq', '256'); // sibelius' internal ppq.
 
-    staffgrp = GenerateStaffGroups(score, barnum);
-    libmei.AddChild(scoredef, staffgrp);
+    if (score.StaffCount > 0)
+    {
+        staffgrp = GenerateStaffGroups(score, barnum);
+        libmei.AddChild(scoredef, staffgrp);
+    }
 
     return scoredef;
 }  //$end
@@ -1520,44 +1515,92 @@ function GenerateLine (bobj) {
             linecomps = MSplitString(bobj.StyleId, '.');
             switch(linecomps[2])
             {
+                //brackets
                 case ('bracket')
                 {
                     line = libmei.Line();
-                    libmei.AddAttribute(line, 'type', 'bracket');
+                    bracketType = 'bracket';
 
-                    if (linecomps.Length > 4)
+                    //horizontal brackets
+                    if (linecomps.Length >= 3)
                     {
-                        if (linecomps[4] = 'start')
+                        //brackets above
+                        if (linecomps[3] = 'above')
                         {
-                            libmei.AddAttribute(line, 'subtype', 'start');
-                        }
+                            libmei.AddAttribute(line, 'place', 'above');
 
-                        if (linecomps[4] = 'end')
-                        {
-                            libmei.AddAttribute(line, 'subtype', 'end');
+                            if (linecomps.Length > 4)
+                            {
+                                if (linecomps[4] = 'start')
+                                {
+                                    bracketType = bracketType & ' start';
+                                    libmei.AddAttribute(line, 'startsym', 'angleup');
+                                }
+
+                                if (linecomps[4] = 'end')
+                                {
+                                    bracketType = bracketType & ' end';
+                                    libmei.AddAttribute(line, 'endsym', 'angleup');
+                                }
+                            }
+                            else
+                            {
+                              libmei.AddAttribute(line, 'startsym', 'angleup');
+                              libmei.AddAttribute(line, 'endsym', 'angleup');
+                            }
                         }
-                    }
-                    if (linecomps.Length > 3)
-                    {
+                        //brackets below
+                        if (linecomps[3] = 'below')
+                        {
+                            libmei.AddAttribute(line, 'place', 'below');
+
+                            if (linecomps.Length > 4)
+                            {
+                                if (linecomps[4] = 'start')
+                                {
+                                    bracketType = bracketType & ' start';
+                                    libmei.AddAttribute(line, 'startsym', 'angledown');
+                                }
+
+                                if (linecomps[4] = 'end')
+                                {
+                                    bracketType = bracketType & ' end';
+                                    libmei.AddAttribute(line, 'endsym', 'angledown');
+                                }
+                            }
+                            else
+                            {
+                                libmei.AddAttribute(line, 'startsym', 'angledown');
+                                libmei.AddAttribute(line, 'endsym', 'angledown');
+                            }
+                        }
+                        //vertical bracktes
                         if (linecomps[3] = 'vertical')
                         {
-                            libmei.AddAttribute(line, 'subtype', 'vertical');
+                            bracketType = bracketType & ' vertical';
 
-                            //Add direction of bracket
+                            //Add direction of bracket: line.staff.bracket.vertical.2 opens to the right, line.staff.bracket.vertical opens to the left
                             if (linecomps > 4)
                             {
                                 if (linecomps[4] = '2')
                                 {
-                                    libmei.AddAttribute(line, 'label', 'start');
+                                    bracketType = bracketType & ' start';
+                                    libmei.AddAttribute(line, 'startsym', 'angleright');
+                                    libmei.AddAttribute(line, 'endsym', 'angleright');
                                 }
                             }
 
                             else
                             {
-                                libmei.AddAttribute(line, 'label', 'end');
+                                bracketType = bracketType & ' end';
+                                libmei.AddAttribute(line, 'startsym', 'angleleft');
+                                libmei.AddAttribute(line, 'endsym', 'angleleft');
                             }
                         }
                     }
+
+                    //add types of bracktes
+                    libmei.AddAttribute(line, 'type', bracketType);
                 }
                 //solid vertical line
                 case ('vertical')
@@ -1566,9 +1609,10 @@ function GenerateLine (bobj) {
                     libmei.AddAttribute(line,'form','solid');
                     libmei.AddAttribute(line,'type','vertical');
                 }
-                //dashed vertical line
+                //dashed lines
                 case ('dashed')
                 {
+                    //dashed vertical line
                     if (linecomps.Length > 3)
                     {
                         if (linecomps[3] = 'vertical')
@@ -1578,6 +1622,24 @@ function GenerateLine (bobj) {
                             libmei.AddAttribute(line,'type','vertical');
                         }
                     }
+                    //dashed horizontal line
+                    else
+                    {
+                      line = libmei.Line();
+                      libmei.AddAttribute(line,'form','dashed');
+                    }
+                }
+                //dotted horizontal line
+                case('dotted')
+                {
+                  line = libmei.Line();
+                  libmei.AddAttribute(line,'form','dotted');
+                }
+                //solid horizontal line
+                case('plain')
+                {
+                  line = libmei.Line();
+                  libmei.AddAttribute(line,'form','solid');
                 }
                 case ('vibrato')
                 {
@@ -2031,9 +2093,9 @@ function GenerateSmuflAltsym (glyphnum, glyphname) {
         libmei.AddChild(symbolDef, anchoredText);
         symbol = libmei.Symbol();
         libmei.AddChild(anchoredText, symbol);
-        libmei.AddAttribute(symbol, 'authority', 'SMuFL');
-        libmei.AddAttribute(symbol, 'glyphnum', glyphnum);
-        libmei.AddAttribute(symbol, 'glyphname', glyphname);
+        libmei.AddAttribute(symbol, 'glyph.auth', 'smufl');
+        libmei.AddAttribute(symbol, 'glyph.num', glyphnum);
+        libmei.AddAttribute(symbol, 'glyph.name', glyphname);
 
         symbolIds[glyphnum] = symbolDef._id;
     }

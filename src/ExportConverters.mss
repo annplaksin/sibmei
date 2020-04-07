@@ -142,44 +142,6 @@ function ConvertOctava (octava_id) {
     return CreateSparseArray(dis, place);
 }  //$end
 
-function ConvertSlur (slur_value) {
-    //$module(ExportConverters.mss)
-    slurparts = MSplitString(slur_value, '.');
-    direction = ' ';
-    style = ' ';
-    switch(slurparts[3])
-    {
-        case ('up')
-        {
-            direction = 'above';
-        }
-        case ('down')
-        {
-            direction = 'below';
-        }
-        default
-        {
-            direction = ' ';
-        }
-    }
-    switch(slurparts[4])
-    {
-        case ('dashed')
-        {
-            style = 'dashed';
-        }
-        case ('dotted')
-        {
-            style = 'dotted';
-        }
-        default
-        {
-            style = ' ';
-        }
-    }
-    return CreateSparseArray(direction, style);
-}  //$end
-
 function ConvertDiatonicPitch (diatonic_pitch) {
     //$module(ExportConverters)
     octv = (diatonic_pitch / 7) - 1;
@@ -188,6 +150,26 @@ function ConvertDiatonicPitch (diatonic_pitch) {
     pname = pnames[idx];
 
     return CreateSparseArray(pname, octv);
+}  //$end
+
+function ConvertOffsetsToMEI (offset) {
+    //$module(ExportConverters.mss)
+
+    /*
+     This function will convert the 1/32 unit
+     Sibelius offsets into the MEI virtual units as required by the
+     data.MEASUREMENTREL datatype used by MEI.
+
+    The `StaffHeight` property always returns the staff height in millimeters.
+
+    Most offsets are given in Sibelius Units, which
+    are defined as 1/32 of a space. A space is 1/4 of the staff height.
+
+    MEI virtual unit (vu) is defined as half the distance between the vertical
+    center point of a staff line and that of an adjacent staff line.
+    */
+    retval = (offset / 16.0);
+    return retval & 'vu';
 }  //$end
 
 function ConvertOffsetsToMillimeters (offset) {
@@ -400,7 +382,14 @@ function ConvertAccidental (noteobj) {
         }
         case('x')
         {
-            ac = 'x';
+            if (is_visible = True)
+            {
+                ac = 'x';
+            }
+            else
+            {
+                ac = 'ss';
+            }
         }
         case('##')
         {
@@ -641,7 +630,7 @@ function ConvertNoteStyle (style) {
     {
         case (CrossNoteStyle)
         {
-            noteStyle = 'cross';
+            noteStyle = 'x';
         }
         case (DiamondNoteStyle)
         {
@@ -653,18 +642,21 @@ function ConvertNoteStyle (style) {
             // and does not differentiate in the
             // head style, so we have to choose one
             // or the other.
-            noteStyle = 'cross';
+            noteStyle = 'x';
         }
         case (BlackAndWhiteDiamondNoteStyle)
         {
+            // There is not filled diamond in data.HEADSHAPE.list
             noteStyle = 'filldiamond';
         }
         case (SlashedNoteStyle)
         {
+            // There is only an unfilled slash in data.HEADSHAPE.list, no added slash
             noteStyle = 'addslash';
         }
         case (BackSlashedNoteStyle)
         {
+            // There is only an unfilled backslash in data.HEADSHAPE.list, no added slash
             noteStyle = 'addbackslash';
         }
         case (ArrowDownNoteStyle)
@@ -709,8 +701,8 @@ function ConvertNoteStyle (style) {
         }
         case (ShapedNote6NoteStyle)
         {
-            // there is no square in MEI...
-            noteStyle = ' ';
+            // In MEI 4.0, there is a square in data.HEADSHAPE.list
+            noteStyle = 'square';
         }
         case (ShapedNote7NoteStyle)
         {
@@ -902,12 +894,12 @@ function ConvertText (textobj) {
 
             if (textobj.Dx != 0)
             {
-                libmei.AddAttribute(dynam, 'ho', ConvertOffsetsToMillimeters(textobj.Dx));
+                libmei.AddAttribute(dynam, 'ho', ConvertOffsetsToMEI(textobj.Dx));
             }
 
             if (textobj.Dy != 0)
             {
-                libmei.AddAttribute(dynam, 'vo', ConvertOffsetsToMillimeters(textobj.Dy));
+                libmei.AddAttribute(dynam, 'vo', ConvertOffsetsToMEI(textobj.Dy));
             }
             return dynam;
         }
@@ -960,12 +952,12 @@ function ConvertTextElement (textobj) {
 
     if (textobj.Dx != 0)
     {
-        libmei.AddAttribute(obj, 'ho', ConvertOffsetsToMillimeters(textobj.Dx));
+        libmei.AddAttribute(obj, 'ho', ConvertOffsetsToMEI(textobj.Dx));
     }
 
     if (textobj.Dy != 0)
     {
-        libmei.AddAttribute(obj, 'vo', ConvertOffsetsToMillimeters(textobj.Dy));
+        libmei.AddAttribute(obj, 'vo', ConvertOffsetsToMEI(textobj.Dy));
     }
 
     return obj;
@@ -1120,10 +1112,40 @@ function ConvertDate (datetime) {
 
 function ConvertTimeStamp (time) {
     //$module(ExportConverters.mss)
-    // Converts a timestamp in milliseconds to a
-    // string suitable for use in @tstamp.ges
-    t = time / 1000.0;
-    return t & 's';
+    // Converts a timestamp in milliseconds to an
+    // isotime (hh:mm:ss.s) suitable for use in @tstamp.real
+
+    mins = utils.GetMinutesFromTime(time);
+
+    secs = time % 60000.0 / 1000.0;
+    // We need to ensure that values always have two digits
+    if (secs < 10.0)
+    {
+        secs = '0' & secs;
+    }
+
+    hours = 0;
+    if (mins > 60)
+    {
+        rem = mins % 60;
+        hours = (mins - rem) / 60;
+        mins = rem;
+
+        // Only if mins > 60 we need to make sure, that there are two digits
+        if (mins < 10)
+        {
+            mins = '0' & mins;
+        }
+    }
+
+    // In the case of a very long score, we need to make sure, that there are always two digits
+    if (hours < 10)
+    {
+        hours = '0' & hours;
+    }
+
+    isodate = utils.Format('%s:%s:%s', hours, mins, secs);
+    return isodate;
 }  //$end
 
 
